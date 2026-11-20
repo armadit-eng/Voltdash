@@ -2,9 +2,12 @@ package com.example.ui.components
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -37,7 +40,10 @@ import com.example.model.ElevationSample
 import com.example.model.HillGrade
 import com.example.ui.theme.GarageLivery
 import com.example.ui.theme.LocalCockpitColors
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import org.json.JSONArray
 
 @Composable
@@ -60,7 +66,20 @@ fun ScooterHeroCanvas(
     val w = size.width
     val h = size.height
     val cx = w * 0.5f
-    val groundY = h * 0.84f
+    val groundY = h * 0.85f
+
+    // Subtle cockpit grid horizon line behind scooter
+    val gridCol = Color.White.copy(alpha = 0.05f)
+    for (i in 1..3) {
+      val gy = groundY - i * (h * 0.14f)
+      drawLine(gridCol, Offset(w * 0.06f, gy), Offset(w * 0.94f, gy), strokeWidth = 1f)
+    }
+    drawLine(
+      brush = Brush.horizontalGradient(listOf(Color.Transparent, livery.bodyColor.copy(alpha = 0.35f), Color.Transparent)),
+      start = Offset(w * 0.08f, groundY),
+      end = Offset(w * 0.92f, groundY),
+      strokeWidth = 2f,
+    )
 
     // Radial halo behind scooter matching selected livery
     val haloColor = if (isCharging || isRegen) Color(0xFF00E5FF) else livery.bodyColor
@@ -69,44 +88,44 @@ fun ScooterHeroCanvas(
         Brush.radialGradient(
           colors =
             listOf(
-              haloColor.copy(alpha = if (isCharging || isRegen) 0.32f * pulse else 0.22f),
+              haloColor.copy(alpha = if (isCharging || isRegen) 0.36f * pulse else 0.24f),
               Color.Transparent,
             ),
-          center = Offset(cx, h * 0.54f),
-          radius = w * 0.45f,
+          center = Offset(cx, h * 0.53f),
+          radius = w * 0.48f,
         ),
-      center = Offset(cx, h * 0.54f),
-      radius = w * 0.45f,
+      center = Offset(cx, h * 0.53f),
+      radius = w * 0.48f,
     )
 
     // Ground shadow
     drawOval(
-      color = Color.Black.copy(alpha = 0.42f),
-      topLeft = Offset(w * 0.14f, groundY - 5f),
-      size = Size(w * 0.72f, 12f),
+      color = Color.Black.copy(alpha = 0.48f),
+      topLeft = Offset(w * 0.14f, groundY - 4f),
+      size = Size(w * 0.72f, 11f),
     )
 
     val rearWheelX = w * 0.26f
     val frontWheelX = w * 0.74f
-    val wheelY = groundY - h * 0.15f
+    val wheelY = groundY - h * 0.145f
     val wheelR = h * 0.14f
 
-    // Tires & rims
+    // Tires & precision alloy rims
     for (wx in listOf(rearWheelX, frontWheelX)) {
-      drawCircle(color = Color(0xFF151C22), radius = wheelR, center = Offset(wx, wheelY))
+      drawCircle(color = Color(0xFF10161C), radius = wheelR, center = Offset(wx, wheelY))
       drawCircle(
-        color = Color(0xFF2B3842),
-        radius = wheelR * 0.86f,
+        color = Color(0xFF2E3C47),
+        radius = wheelR * 0.85f,
         center = Offset(wx, wheelY),
         style = Stroke(width = 3.5f),
       )
       drawCircle(
-        color = livery.trimColor.copy(alpha = 0.75f),
+        color = livery.trimColor.copy(alpha = 0.85f),
         radius = wheelR * 0.56f,
         center = Offset(wx, wheelY),
         style = Stroke(width = 2.5f),
       )
-      drawCircle(color = Color(0xFF8FA3B3), radius = wheelR * 0.18f, center = Offset(wx, wheelY))
+      drawCircle(color = Color(0xFFA4B8C7), radius = wheelR * 0.18f, center = Offset(wx, wheelY))
     }
 
     // Swingarm & Floorboard chassis
@@ -119,27 +138,27 @@ fun ScooterHeroCanvas(
       }
     drawPath(
       path = chassis,
-      color = Color(0xFF222E38),
+      color = Color(0xFF212E39),
       style = Stroke(width = h * 0.065f, cap = StrokeCap.Round, join = StrokeJoin.Round),
     )
 
     // Front Fork
     drawLine(
-      color = Color(0xFF8FA3B3),
+      color = Color(0xFFA0B4C4),
       start = Offset(w * 0.65f, h * 0.34f),
       end = Offset(frontWheelX, wheelY),
-      strokeWidth = h * 0.045f,
+      strokeWidth = h * 0.044f,
       cap = StrokeCap.Round,
     )
 
     // Sleek EV Body Fairing (Painted in GarageLivery)
     val bodyPath =
       Path().apply {
-        moveTo(w * 0.18f, h * 0.49f)
-        quadraticTo(w * 0.25f, h * 0.37f, w * 0.44f, h * 0.42f)
+        moveTo(w * 0.17f, h * 0.49f)
+        quadraticTo(w * 0.25f, h * 0.36f, w * 0.44f, h * 0.42f)
         lineTo(w * 0.56f, h * 0.52f)
-        lineTo(w * 0.66f, h * 0.34f)
-        lineTo(w * 0.73f, h * 0.36f)
+        lineTo(w * 0.66f, h * 0.33f)
+        lineTo(w * 0.735f, h * 0.36f)
         quadraticTo(w * 0.79f, h * 0.52f, w * 0.68f, h * 0.62f)
         lineTo(w * 0.54f, h * 0.65f)
         lineTo(w * 0.36f, h * 0.62f)
@@ -151,8 +170,15 @@ fun ScooterHeroCanvas(
     )
     drawPath(
       path = bodyPath,
-      color = Color.White.copy(alpha = 0.28f),
+      color = Color.White.copy(alpha = 0.34f),
       style = Stroke(width = 2f, join = StrokeJoin.Round),
+    )
+
+    // Tail LED Accent
+    drawCircle(
+      color = Color(0xFFFF5252).copy(alpha = 0.85f),
+      radius = h * 0.024f,
+      center = Offset(w * 0.175f, h * 0.49f),
     )
 
     // Seat
@@ -164,7 +190,7 @@ fun ScooterHeroCanvas(
         lineTo(w * 0.22f, h * 0.46f)
         close()
       }
-    drawPath(path = seatPath, color = Color(0xFF1A222A))
+    drawPath(path = seatPath, color = Color(0xFF151D24))
 
     // Handlebar & Windshield
     drawLine(
@@ -175,32 +201,32 @@ fun ScooterHeroCanvas(
       cap = StrokeCap.Round,
     )
     drawRoundRect(
-      color = Color(0xFF101820),
+      color = Color(0xFF0E161E),
       topLeft = Offset(w * 0.58f, h * 0.20f),
-      size = Size(w * 0.08f, h * 0.055f),
+      size = Size(w * 0.085f, h * 0.055f),
       cornerRadius = CornerRadius(8f, 8f),
     )
 
     // LED Headlight Beam
     drawCircle(
       color = Color(0xFFE0F7FA),
-      radius = h * 0.035f,
+      radius = h * 0.036f,
       center = Offset(w * 0.745f, h * 0.45f),
     )
     drawPath(
       path =
         Path().apply {
           moveTo(w * 0.76f, h * 0.43f)
-          lineTo(w * 0.94f, h * 0.37f)
-          lineTo(w * 0.94f, h * 0.54f)
+          lineTo(w * 0.95f, h * 0.36f)
+          lineTo(w * 0.95f, h * 0.55f)
           lineTo(w * 0.76f, h * 0.47f)
           close()
         },
       brush =
         Brush.horizontalGradient(
-          colors = listOf(Color(0xFF80DEEA).copy(alpha = 0.32f), Color.Transparent),
+          colors = listOf(Color(0xFF80DEEA).copy(alpha = 0.36f), Color.Transparent),
           startX = w * 0.76f,
-          endX = w * 0.94f,
+          endX = w * 0.95f,
         ),
     )
 
@@ -208,8 +234,8 @@ fun ScooterHeroCanvas(
     if (isCharging || isRegen) {
       val flowColor = if (isCharging) Color(0xFF00E676) else Color(0xFF00E5FF)
       drawCircle(
-        color = flowColor.copy(alpha = 0.45f * pulse),
-        radius = h * 0.09f,
+        color = flowColor.copy(alpha = 0.50f * pulse),
+        radius = h * 0.095f,
         center = Offset(w * 0.42f, h * 0.55f),
       )
     }
@@ -225,6 +251,12 @@ fun RadialSocGauge(
 ) {
   val cockpit = LocalCockpitColors.current
   val displaySoc = socPct?.coerceIn(0f, 100f)
+  val animSoc by
+    animateFloatAsState(
+      targetValue = displaySoc ?: 0f,
+      animationSpec = spring(stiffness = Spring.StiffnessLow),
+      label = "soc_sweep",
+    )
   val gaugeColor =
     when {
       chargingState == ChargingIndicatorState.CHARGING -> accentColor
@@ -235,14 +267,34 @@ fun RadialSocGauge(
       else -> accentColor
     }
 
-  Box(modifier = modifier.size(168.dp), contentAlignment = Alignment.Center) {
-    val trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+  Box(modifier = modifier.size(172.dp), contentAlignment = Alignment.Center) {
+    val trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)
     Canvas(modifier = Modifier.fillMaxSize()) {
       val strokePx = 14.dp.toPx()
-      val pad = strokePx / 2f + 4f
+      val pad = strokePx / 2f + 10.dp.toPx()
       val arcSize = Size(size.width - pad * 2f, size.height - pad * 2f)
       val topLeft = Offset(pad, pad)
+      val center = Offset(size.width / 2f, size.height / 2f)
+      val outerR = size.minDimension / 2f - 2.dp.toPx()
 
+      // Outer precision tick marks
+      for (i in 0..20) {
+        val deg = 135.0 + (270.0 / 20.0) * i
+        val rad = deg * PI / 180.0
+        val inner = outerR - if (i % 5 == 0) 6.dp.toPx() else 3.dp.toPx()
+        val p1 = Offset(center.x + (inner * cos(rad)).toFloat(), center.y + (inner * sin(rad)).toFloat())
+        val p2 = Offset(center.x + (outerR * cos(rad)).toFloat(), center.y + (outerR * sin(rad)).toFloat())
+        val tickActive = displaySoc != null && (i / 20f) * 100f <= animSoc
+        drawLine(
+          color = if (tickActive) gaugeColor.copy(alpha = 0.85f) else trackColor,
+          start = p1,
+          end = p2,
+          strokeWidth = if (i % 5 == 0) 2.dp.toPx() else 1.2.dp.toPx(),
+          cap = StrokeCap.Round,
+        )
+      }
+
+      // Base track arc
       drawArc(
         color = trackColor,
         startAngle = 135f,
@@ -253,11 +305,22 @@ fun RadialSocGauge(
         style = Stroke(width = strokePx, cap = StrokeCap.Round),
       )
 
-      if (displaySoc != null) {
+      // Ambient glow + active arc
+      if (displaySoc != null && animSoc > 0.5f) {
+        val sweep = 270f * (animSoc / 100f)
+        drawArc(
+          color = gaugeColor.copy(alpha = 0.22f),
+          startAngle = 135f,
+          sweepAngle = sweep,
+          useCenter = false,
+          topLeft = topLeft,
+          size = arcSize,
+          style = Stroke(width = strokePx + 6.dp.toPx(), cap = StrokeCap.Round),
+        )
         drawArc(
           brush = Brush.sweepGradient(listOf(gaugeColor.copy(alpha = 0.7f), gaugeColor)),
           startAngle = 135f,
-          sweepAngle = 270f * (displaySoc / 100f),
+          sweepAngle = sweep,
           useCenter = false,
           topLeft = topLeft,
           size = arcSize,
@@ -277,7 +340,7 @@ fun RadialSocGauge(
         text = chargingState.label,
         style = MaterialTheme.typography.labelSmall,
         color = gaugeColor,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
       )
     }
   }
@@ -289,8 +352,8 @@ fun TelemetryLineChart(
   lineColor: Color,
   modifier: Modifier = Modifier,
 ) {
-  val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-  Canvas(modifier = modifier.fillMaxWidth().height(120.dp)) {
+  val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.30f)
+  Canvas(modifier = modifier.fillMaxWidth().height(126.dp)) {
     val w = size.width
     val h = size.height
     for (i in 0..3) {
@@ -303,32 +366,42 @@ fun TelemetryLineChart(
     val maxVal = (values.maxOrNull() ?: 1f).let { if (it - minVal < 0.1f) minVal + 1f else it }
     val span = maxVal - minVal
 
-    val linePath = Path()
-    val fillPath = Path()
-    values.forEachIndexed { idx, v ->
-      val x = (idx.toFloat() / (values.lastIndex)) * w
-      val y = h - ((v - minVal) / span) * (h * 0.86f) - h * 0.07f
-      if (idx == 0) {
-        linePath.moveTo(x, y)
-        fillPath.moveTo(x, h)
-        fillPath.lineTo(x, y)
-      } else {
-        linePath.lineTo(x, y)
-        fillPath.lineTo(x, y)
+    val pts =
+      values.mapIndexed { idx, v ->
+        val x = (idx.toFloat() / values.lastIndex) * w
+        val y = h - ((v - minVal) / span) * (h * 0.84f) - h * 0.08f
+        Offset(x, y)
       }
+
+    val linePath = Path().apply { moveTo(pts.first().x, pts.first().y) }
+    val fillPath =
+      Path().apply {
+        moveTo(pts.first().x, h)
+        lineTo(pts.first().x, pts.first().y)
+      }
+    for (i in 1 until pts.size) {
+      val prev = pts[i - 1]
+      val cur = pts[i]
+      val midX = (prev.x + cur.x) / 2f
+      linePath.cubicTo(midX, prev.y, midX, cur.y, cur.x, cur.y)
+      fillPath.cubicTo(midX, prev.y, midX, cur.y, cur.x, cur.y)
     }
     fillPath.lineTo(w, h)
     fillPath.close()
 
     drawPath(
       path = fillPath,
-      brush = Brush.verticalGradient(listOf(lineColor.copy(alpha = 0.28f), Color.Transparent)),
+      brush = Brush.verticalGradient(listOf(lineColor.copy(alpha = 0.30f), Color.Transparent)),
     )
     drawPath(
       path = linePath,
       color = lineColor,
-      style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+      style = Stroke(width = 2.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
     )
+
+    val lastPt = pts.last()
+    drawCircle(lineColor.copy(alpha = 0.28f), radius = 7.dp.toPx(), center = lastPt)
+    drawCircle(lineColor, radius = 3.5.dp.toPx(), center = lastPt)
   }
 }
 
@@ -375,14 +448,14 @@ fun DailyStatsBarCanvas(
   accentColor: Color,
   modifier: Modifier = Modifier,
 ) {
-  val trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
-  Canvas(modifier = modifier.fillMaxWidth().height(110.dp)) {
+  val trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+  Canvas(modifier = modifier.fillMaxWidth().height(114.dp)) {
     if (bars.isEmpty()) return@Canvas
     val w = size.width
     val h = size.height
     val maxKm = bars.maxOf { it.distanceKm }.coerceAtLeast(1.0)
     val slotW = w / bars.size
-    val barW = slotW * 0.52f
+    val barW = slotW * 0.50f
 
     bars.forEachIndexed { idx, b ->
       val left = idx * slotW + (slotW - barW) / 2f
@@ -390,15 +463,22 @@ fun DailyStatsBarCanvas(
         color = trackColor,
         topLeft = Offset(left, 6f),
         size = Size(barW, h - 12f),
-        cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+        cornerRadius = CornerRadius(7.dp.toPx(), 7.dp.toPx()),
       )
-      val barH = ((b.distanceKm / maxKm) * (h - 14f)).toFloat().coerceAtLeast(if (b.distanceKm > 0) 6f else 0f)
+      val barH = ((b.distanceKm / maxKm) * (h - 14f)).toFloat().coerceAtLeast(if (b.distanceKm > 0) 8f else 0f)
       if (barH > 0f) {
+        val topY = h - 6f - barH
         drawRoundRect(
-          brush = Brush.verticalGradient(listOf(accentColor, accentColor.copy(alpha = 0.55f))),
-          topLeft = Offset(left, h - 6f - barH),
+          brush = Brush.verticalGradient(listOf(accentColor, accentColor.copy(alpha = 0.45f))),
+          topLeft = Offset(left, topY),
           size = Size(barW, barH),
-          cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+          cornerRadius = CornerRadius(7.dp.toPx(), 7.dp.toPx()),
+        )
+        drawRoundRect(
+          color = Color.White.copy(alpha = 0.35f),
+          topLeft = Offset(left, topY),
+          size = Size(barW, 3.dp.toPx()),
+          cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
         )
       }
     }
@@ -451,12 +531,14 @@ fun TripPathReplayCanvas(
           spd >= 28 -> cockpit.warning
           else -> accentColor
         }
-      drawLine(segColor, p1, p2, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+      drawLine(segColor, p1, p2, strokeWidth = 3.2.dp.toPx(), cap = StrokeCap.Round)
     }
 
     val startOff = toOffset(pts.first().first, pts.first().second)
     val endOff = toOffset(pts.last().first, pts.last().second)
+    drawCircle(accentColor.copy(alpha = 0.25f), radius = 9.dp.toPx(), center = startOff)
     drawCircle(accentColor, radius = 5.dp.toPx(), center = startOff)
+    drawCircle(cockpit.danger.copy(alpha = 0.25f), radius = 9.dp.toPx(), center = endOff)
     drawCircle(cockpit.danger, radius = 5.dp.toPx(), center = endOff)
   }
 }

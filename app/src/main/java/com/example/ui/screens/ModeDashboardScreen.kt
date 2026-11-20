@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -33,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -50,8 +54,11 @@ import com.example.ui.components.StatTile
 import com.example.ui.theme.LocalCockpitColors
 import com.example.viewmodel.DashboardViewModel
 import java.util.Locale
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 @Composable
 fun ModeDashboardScreen(
@@ -69,7 +76,22 @@ fun ModeDashboardScreen(
   val nav by viewModel.navState.collectAsStateWithLifecycle()
 
   Box(
-    modifier = modifier.fillMaxSize().background(Color(0xFF040A0F)).statusBarsPadding(),
+    modifier =
+      modifier.fillMaxSize()
+        .background(Color(0xFF03080D))
+        .drawBehind {
+          drawCircle(
+            brush =
+              Brush.radialGradient(
+                colors = listOf(cockpit.accent.copy(alpha = 0.16f), Color.Transparent),
+                center = Offset(size.width * 0.5f, size.height * 0.34f),
+                radius = size.width * 0.85f,
+              ),
+            center = Offset(size.width * 0.5f, size.height * 0.34f),
+            radius = size.width * 0.85f,
+          )
+        }
+        .statusBarsPadding(),
     contentAlignment = Alignment.TopCenter,
   ) {
     Column(
@@ -88,8 +110,8 @@ fun ModeDashboardScreen(
       ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
           Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = cockpit.accent.copy(alpha = 0.16f),
+            shape = RoundedCornerShape(12.dp),
+            color = cockpit.accent.copy(alpha = 0.18f),
             border = BorderStroke(1.dp, cockpit.accent),
           ) {
             Text(
@@ -101,8 +123,8 @@ fun ModeDashboardScreen(
             )
           }
           Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = if (eff.isPark == true) cockpit.warning.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant,
+            shape = RoundedCornerShape(12.dp),
+            color = if (eff.isPark == true) cockpit.warning.copy(alpha = 0.18f) else Color(0xFF10202D),
           ) {
             Text(
               text =
@@ -112,7 +134,7 @@ fun ModeDashboardScreen(
                   null -> "STANDBY"
                 },
               style = MaterialTheme.typography.labelLarge,
-              color = if (eff.isPark == true) cockpit.warning else MaterialTheme.colorScheme.onSurface,
+              color = if (eff.isPark == true) cockpit.warning else Color(0xFFEAF2F8),
               fontWeight = FontWeight.Bold,
               modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
@@ -123,7 +145,7 @@ fun ModeDashboardScreen(
         Text(
           text = gps.headingDeg?.let { "HDG ${it.roundToInt()}° (${compassDir(it)})" } ?: "HDG —°",
           style = MaterialTheme.typography.labelMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          color = Color(0xFF8CA3B5),
         )
 
         IconButton(
@@ -138,8 +160,8 @@ fun ModeDashboardScreen(
       if (nav.isNavigating && nav.activeRoute != null) {
         val step = nav.activeRoute?.steps?.getOrNull(nav.activeStepIndex)
         Surface(
-          shape = RoundedCornerShape(14.dp),
-          color = cockpit.accent.copy(alpha = 0.15f),
+          shape = RoundedCornerShape(16.dp),
+          color = cockpit.accent.copy(alpha = 0.16f),
           border = BorderStroke(1.dp, cockpit.accent),
           modifier = Modifier.fillMaxWidth(),
         ) {
@@ -161,27 +183,57 @@ fun ModeDashboardScreen(
 
       // Main Arc Speedometer Gauge
       CockpitCard(
-        borderColor = cockpit.accent.copy(alpha = 0.4f),
-        containerColor = Color(0xFF08121B),
+        borderColor = cockpit.accent.copy(alpha = 0.48f),
+        containerColor = Color(0xFF07111A),
+        accentGlow = if (eff.isRegen) cockpit.regen else cockpit.accent,
         modifier = Modifier.fillMaxWidth(),
       ) {
         Box(
-          modifier = Modifier.fillMaxWidth().height(230.dp),
+          modifier = Modifier.fillMaxWidth().height(240.dp),
           contentAlignment = Alignment.Center,
         ) {
-          val speed = (eff.speedKmh ?: 0f).coerceIn(0f, 120f)
-          val accent = cockpit.accent
-          val regenCol = cockpit.regen
-          val activeSweepColor = if (eff.isRegen) regenCol else accent
+          val targetSpeed = (eff.speedKmh ?: 0f).coerceIn(0f, 120f)
+          val animSpeed by
+            animateFloatAsState(
+              targetValue = targetSpeed,
+              animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+              label = "hud_speed",
+            )
+          val activeSweepColor =
+            when {
+              eff.isRegen -> cockpit.regen
+              animSpeed >= 80f -> cockpit.warning
+              else -> cockpit.accent
+            }
 
-          Canvas(modifier = Modifier.size(220.dp)) {
+          Canvas(modifier = Modifier.size(230.dp)) {
             val strokePx = 18.dp.toPx()
-            val pad = strokePx / 2f + 8f
+            val pad = strokePx / 2f + 12.dp.toPx()
             val arcSize = Size(size.width - pad * 2f, size.height - pad * 2f)
             val topLeft = Offset(pad, pad)
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val outerR = size.minDimension / 2f - 2.dp.toPx()
+
+            // Precision speedometer ticks (0..120 km/h)
+            for (i in 0..24) {
+              val deg = 140.0 + (260.0 / 24.0) * i
+              val rad = deg * PI / 180.0
+              val isMajor = i % 4 == 0
+              val inner = outerR - if (isMajor) 8.dp.toPx() else 4.dp.toPx()
+              val p1 = Offset(center.x + (inner * cos(rad)).toFloat(), center.y + (inner * sin(rad)).toFloat())
+              val p2 = Offset(center.x + (outerR * cos(rad)).toFloat(), center.y + (outerR * sin(rad)).toFloat())
+              val tickActive = (i / 24f) * 120f <= animSpeed
+              drawLine(
+                color = if (tickActive) activeSweepColor else Color(0xFF284054),
+                start = p1,
+                end = p2,
+                strokeWidth = if (isMajor) 2.2.dp.toPx() else 1.2.dp.toPx(),
+                cap = StrokeCap.Round,
+              )
+            }
 
             drawArc(
-              color = Color(0xFF1A2D3D),
+              color = Color(0xFF152534),
               startAngle = 140f,
               sweepAngle = 260f,
               useCenter = false,
@@ -189,30 +241,42 @@ fun ModeDashboardScreen(
               size = arcSize,
               style = Stroke(width = strokePx, cap = StrokeCap.Round),
             )
-            drawArc(
-              brush = Brush.sweepGradient(listOf(activeSweepColor.copy(alpha = 0.6f), activeSweepColor)),
-              startAngle = 140f,
-              sweepAngle = 260f * (speed / 120f),
-              useCenter = false,
-              topLeft = topLeft,
-              size = arcSize,
-              style = Stroke(width = strokePx, cap = StrokeCap.Round),
-            )
+            if (animSpeed > 0.5f) {
+              val sweep = 260f * (animSpeed / 120f)
+              drawArc(
+                color = activeSweepColor.copy(alpha = 0.22f),
+                startAngle = 140f,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx + 8.dp.toPx(), cap = StrokeCap.Round),
+              )
+              drawArc(
+                brush = Brush.sweepGradient(listOf(activeSweepColor.copy(alpha = 0.65f), activeSweepColor)),
+                startAngle = 140f,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round),
+              )
+            }
           }
 
           Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
               text = eff.speedKmh?.let { "${it.roundToInt()}" } ?: "0",
-              style = MaterialTheme.typography.displayLarge.copy(fontSize = 68.sp),
+              style = MaterialTheme.typography.displayLarge.copy(fontSize = 72.sp),
               color = Color.White,
               fontWeight = FontWeight.Bold,
             )
-            Text("KM/H", style = MaterialTheme.typography.labelLarge, color = cockpit.accent)
+            Text("KM/H", style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 2.sp), color = activeSweepColor)
             Spacer(Modifier.height(4.dp))
             Text(
               text = "${eff.rpm ?: 0} RPM",
               style = MaterialTheme.typography.labelMedium,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              color = Color(0xFF8CA3B5),
             )
           }
         }
@@ -220,14 +284,19 @@ fun ModeDashboardScreen(
         // Power Flow Bar
         val pwr = eff.combinedPowerW ?: 0f
         val maxPwr = 4500f
-        val pwrFraction = (abs(pwr) / maxPwr).coerceIn(0f, 1f)
+        val pwrFraction by
+          animateFloatAsState(
+            targetValue = (abs(pwr) / maxPwr).coerceIn(0f, 1f),
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "hud_power",
+          )
         val pwrColor = if (pwr < -10f) cockpit.regen else if (pwr > 2500f) cockpit.warning else cockpit.accent
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
               text = if (pwr < -10f) "ENERGY REGEN" else "POWER OUTPUT",
-              style = MaterialTheme.typography.labelSmall,
+              style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
               color = pwrColor,
               fontWeight = FontWeight.Bold,
             )
@@ -240,9 +309,9 @@ fun ModeDashboardScreen(
           }
           LinearProgressIndicator(
             progress = { pwrFraction },
-            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+            modifier = Modifier.fillMaxWidth().height(9.dp).clip(RoundedCornerShape(5.dp)),
             color = pwrColor,
-            trackColor = Color(0xFF1A2D3D),
+            trackColor = Color(0xFF152534),
           )
         }
       }

@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,6 +73,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -146,11 +152,26 @@ fun HomeScreen(
       }
     }
 
-  Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+  Box(
+    modifier =
+      modifier.fillMaxSize().drawBehind {
+        drawCircle(
+          brush =
+            Brush.radialGradient(
+              colors = listOf(cockpit.accent.copy(alpha = 0.14f), Color.Transparent),
+              center = Offset(size.width * 0.5f, 0f),
+              radius = size.width * 0.9f,
+            ),
+          center = Offset(size.width * 0.5f, 0f),
+          radius = size.width * 0.9f,
+        )
+      },
+    contentAlignment = Alignment.TopCenter,
+  ) {
     LazyColumn(
       modifier = Modifier.widthIn(max = 600.dp).fillMaxSize(),
       contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-      verticalArrangement = Arrangement.spacedBy(10.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
       // 1. Top Connection Strip + Bell
       item {
@@ -299,8 +320,15 @@ fun HomeScreen(
 
       // 4. Hero EV Card (Scooter Visual + Floating Bubbles + Real-Time Battery SOC, Range & Charging Indicator)
       item {
+        val animSocFrac by
+          animateFloatAsState(
+            targetValue = ((eff.combinedSocPct ?: 0f) / 100f).coerceIn(0f, 1f),
+            animationSpec = spring(stiffness = Spring.StiffnessLow),
+            label = "hero_soc",
+          )
         CockpitCard(
-          borderColor = livery.bodyColor.copy(alpha = 0.45f),
+          borderColor = livery.bodyColor.copy(alpha = 0.50f),
+          accentGlow = livery.bodyColor,
           modifier = Modifier.fillMaxWidth().testTag("hero_ev_card"),
         ) {
           Row(
@@ -309,30 +337,43 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
           ) {
             ChargingStatusPill(state = chargingIndicator, modifier = Modifier.testTag("hero_charging_pill"))
-            Text(
-              text =
-                if (eff.b2Active) "Dual Battery (B1+B2)"
-                else if (eff.b1SourceLabel != "—") "Sumber: ${eff.b1SourceLabel}"
-                else "Menunggu BMS/Motor",
-              style = MaterialTheme.typography.labelSmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Surface(
+              shape = RoundedCornerShape(12.dp),
+              color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+            ) {
+              Text(
+                text =
+                  if (eff.b2Active) "Dual Battery (B1+B2)"
+                  else if (eff.b1SourceLabel != "—") "Sumber: ${eff.b1SourceLabel}"
+                  else "Menunggu BMS/Motor",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+              )
+            }
           }
 
-          Spacer(Modifier.height(8.dp))
+          Spacer(Modifier.height(10.dp))
 
           Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
           ) {
             // Left: Scooter Graphic + Sensor Bubbles
             Box(
               modifier =
-                Modifier.weight(1.35f)
-                  .height(155.dp)
-                  .clip(RoundedCornerShape(14.dp))
-                  .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                Modifier.weight(1.32f)
+                  .height(166.dp)
+                  .clip(RoundedCornerShape(16.dp))
+                  .background(
+                    Brush.verticalGradient(
+                      listOf(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                        MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
+                      )
+                    )
+                  ),
             ) {
               ScooterHeroCanvas(
                 livery = livery,
@@ -345,8 +386,8 @@ fun HomeScreen(
               Surface(
                 modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
                 shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                color = MaterialTheme.colorScheme.background.copy(alpha = 0.80f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
               ) {
                 Text(
                   text = eff.speedKmh?.let { "${it.roundToInt()} km/h" } ?: "— km/h",
@@ -360,8 +401,8 @@ fun HomeScreen(
               Surface(
                 modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
                 shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                color = MaterialTheme.colorScheme.background.copy(alpha = 0.80f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
               ) {
                 Text(
                   text = eff.combinedPowerW?.let { "${it.roundToInt()} W" } ?: "— W",
@@ -378,8 +419,8 @@ fun HomeScreen(
               Surface(
                 modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
                 shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.background.copy(alpha = 0.72f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                color = MaterialTheme.colorScheme.background.copy(alpha = 0.80f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
               ) {
                 val vTxt = eff.avgVoltageV?.let { String.format(Locale.US, "%.1fV", it) } ?: "—V"
                 val tTxt = eff.b1TempC?.let { "${it.roundToInt()}°C" } ?: "—°C"
@@ -394,40 +435,41 @@ fun HomeScreen(
             // Right: SOC %, Bar, Range Estimate, B1/B2 Breakdown
             Column(
               modifier = Modifier.weight(1f),
-              verticalArrangement = Arrangement.spacedBy(6.dp),
+              verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
               Text(
-                text = "Baterai Total",
-                style = MaterialTheme.typography.labelSmall,
+                text = "BATERAI TOTAL",
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.8.sp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
               )
+              val socColor =
+                when {
+                  eff.combinedSocPct == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                  eff.combinedSocPct!! <= 15f -> cockpit.danger
+                  eff.combinedSocPct!! <= 30f -> cockpit.warning
+                  else -> cockpit.accent
+                }
               Text(
                 text = eff.combinedSocPct?.let { "${it.roundToInt()}%" } ?: "—%",
-                style = MaterialTheme.typography.displayMedium.copy(fontSize = 36.sp),
-                color =
-                  when {
-                    eff.combinedSocPct == null -> MaterialTheme.colorScheme.onSurfaceVariant
-                    eff.combinedSocPct!! <= 15f -> cockpit.danger
-                    eff.combinedSocPct!! <= 30f -> cockpit.warning
-                    else -> cockpit.accent
-                  },
+                style = MaterialTheme.typography.displayMedium.copy(fontSize = 40.sp, lineHeight = 42.sp),
+                color = socColor,
                 fontWeight = FontWeight.Bold,
               )
               LinearProgressIndicator(
-                progress = { ((eff.combinedSocPct ?: 0f) / 100f).coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(4.dp)),
-                color = cockpit.accent,
-                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                progress = { animSocFrac },
+                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                color = socColor,
+                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
               )
               Text(
                 text =
                   if (eff.combinedSocPct != null) {
-                    "Sisa Jarak ~${String.format(Locale.US, "%.1f", eff.rangeKm)} km"
+                    "Sisa ~${String.format(Locale.US, "%.1f", eff.rangeKm)} km"
                   } else {
                     "Sisa Jarak — km"
                   },
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
               )
               Text(
@@ -438,14 +480,16 @@ fun HomeScreen(
               if (eff.b2Active) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                   Text(
-                    "B1: ${eff.b1SocPct?.roundToInt() ?: "—"}%",
+                    "B1 ${eff.b1SocPct?.roundToInt() ?: "—"}%",
                     style = MaterialTheme.typography.labelSmall,
                     color = cockpit.accent,
+                    fontWeight = FontWeight.SemiBold,
                   )
                   Text(
-                    "B2: ${eff.b2SocPct?.roundToInt() ?: "—"}%",
+                    "B2 ${eff.b2SocPct?.roundToInt() ?: "—"}%",
                     style = MaterialTheme.typography.labelSmall,
                     color = cockpit.info,
+                    fontWeight = FontWeight.SemiBold,
                   )
                 }
               }
@@ -980,29 +1024,32 @@ private fun QuickActionButton(
   modifier: Modifier = Modifier,
 ) {
   Surface(
-    modifier = modifier.heightIn(min = 56.dp).clickable(onClick = onClick),
-    shape = RoundedCornerShape(14.dp),
-    color = MaterialTheme.colorScheme.surface,
-    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
+    modifier = modifier.heightIn(min = 66.dp).clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick),
+    shape = RoundedCornerShape(16.dp),
+    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+    border = BorderStroke(1.dp, tint.copy(alpha = 0.28f)),
+    tonalElevation = 1.dp,
   ) {
-    Row(
+    Column(
       modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(7.dp),
+      horizontalAlignment = Alignment.Start,
+      verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
       Box(
         modifier =
-          Modifier.size(30.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(tint.copy(alpha = 0.14f)),
+          Modifier.size(32.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+              Brush.linearGradient(listOf(tint.copy(alpha = 0.24f), tint.copy(alpha = 0.08f)))
+            ),
         contentAlignment = Alignment.Center,
       ) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(17.dp))
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(18.dp))
       }
       Text(
         text = label,
         style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Bold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
       )

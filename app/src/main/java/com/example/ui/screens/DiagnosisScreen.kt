@@ -35,9 +35,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.model.ERROR_DEFS
 import com.example.ui.components.ChargingStatusPill
@@ -70,7 +75,22 @@ fun DiagnosisScreen(
   var sortCellsByVoltage by remember { mutableStateOf(false) }
   var showErrorSheet by remember { mutableStateOf(false) }
 
-  Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+  Box(
+    modifier =
+      modifier.fillMaxSize().drawBehind {
+        drawCircle(
+          brush =
+            Brush.radialGradient(
+              colors = listOf(cockpit.info.copy(alpha = 0.12f), Color.Transparent),
+              center = Offset(size.width * 0.5f, 0f),
+              radius = size.width * 0.9f,
+            ),
+          center = Offset(size.width * 0.5f, 0f),
+          radius = size.width * 0.9f,
+        )
+      },
+    contentAlignment = Alignment.TopCenter,
+  ) {
     LazyColumn(
       modifier = Modifier.widthIn(max = 600.dp).fillMaxSize(),
       contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
@@ -100,7 +120,11 @@ fun DiagnosisScreen(
       if (selectedMainTab == 0) {
         // ── THROTTLE & MOTOR DIAGNOSIS ──
         item {
-          CockpitCard(modifier = Modifier.fillMaxWidth()) {
+          CockpitCard(
+            accentGlow = cockpit.accent,
+            borderColor = cockpit.accent.copy(alpha = 0.4f),
+            modifier = Modifier.fillMaxWidth(),
+          ) {
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
@@ -186,7 +210,8 @@ fun DiagnosisScreen(
         // ── BATTERY REAL-TIME STATUS & DUAL BATTERY MONITOR ──
         item {
           CockpitCard(
-            borderColor = cockpit.accent.copy(alpha = 0.45f),
+            accentGlow = cockpit.accent,
+            borderColor = cockpit.accent.copy(alpha = 0.5f),
             modifier = Modifier.fillMaxWidth().testTag("battery_realtime_card"),
           ) {
             Row(
@@ -315,7 +340,11 @@ fun DiagnosisScreen(
 
         // Voltage Trend Chart
         item {
-          CockpitCard(modifier = Modifier.fillMaxWidth()) {
+          CockpitCard(
+            accentGlow = cockpit.info,
+            borderColor = cockpit.info.copy(alpha = 0.35f),
+            modifier = Modifier.fillMaxWidth(),
+          ) {
             Text("Tren Tegangan Pack (V)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             TelemetryLineChart(
@@ -434,20 +463,32 @@ private fun CellVoltageGridCard(
                 }
               Surface(
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(12.dp),
+                color =
+                  if (isMin || isMax) tint.copy(alpha = 0.14f)
+                  else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
                 border =
                   BorderStroke(
-                    1.dp,
-                    if (isMin || isMax) tint.copy(alpha = 0.65f)
+                    if (isMin || isMax) 1.2.dp else 1.dp,
+                    if (isMin || isMax) tint.copy(alpha = 0.7f)
                     else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                   ),
               ) {
                 Column(
-                  modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
+                  modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
                   horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                  Text("C$idx", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                  Text(
+                    text =
+                      when {
+                        isMax -> "C$idx ▲"
+                        isMin -> "C$idx ▼"
+                        else -> "C$idx"
+                      },
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = if (isMin || isMax) tint else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isMin || isMax) FontWeight.Bold else FontWeight.Medium,
+                  )
                   Text(
                     String.format(Locale.US, "%.3fV", v),
                     style = MaterialTheme.typography.labelMedium,

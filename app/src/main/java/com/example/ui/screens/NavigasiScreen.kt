@@ -176,9 +176,10 @@ fun NavigasiScreen(
         val step = route.steps.getOrNull(nav.activeStepIndex)
         Surface(
           modifier = Modifier.fillMaxWidth().testTag("turn_by_turn_banner"),
-          shape = RoundedCornerShape(18.dp),
-          color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+          shape = RoundedCornerShape(20.dp),
+          color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
           border = BorderStroke(1.5.dp, cockpit.accent),
+          tonalElevation = 6.dp,
         ) {
           Row(
             modifier = Modifier.padding(14.dp),
@@ -237,9 +238,10 @@ fun NavigasiScreen(
       } else {
         // Destination Search Box
         Surface(
-          shape = RoundedCornerShape(16.dp),
-          color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.7f)),
+          shape = RoundedCornerShape(20.dp),
+          color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+          border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
+          tonalElevation = 6.dp,
         ) {
           Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -386,9 +388,10 @@ fun NavigasiScreen(
     ) {
       // Speedometer + Battery Mini HUD
       Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-        border = BorderStroke(1.dp, cockpit.accent.copy(alpha = 0.45f)),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.93f),
+        border = BorderStroke(1.2.dp, cockpit.accent.copy(alpha = 0.55f)),
+        tonalElevation = 6.dp,
       ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
           Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -434,11 +437,12 @@ fun NavigasiScreen(
     nav.activeRoute?.let { route ->
       Surface(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        border = BorderStroke(1.dp, cockpit.accent.copy(alpha = 0.4f)),
+        tonalElevation = 8.dp,
       ) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
           if (nav.routes.size > 1) {
             Row(
               modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -459,7 +463,7 @@ fun NavigasiScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
           ) {
-            Column {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
               Text(
                 text = nav.destination?.name ?: "Tujuan",
                 style = MaterialTheme.typography.titleSmall,
@@ -468,13 +472,39 @@ fun NavigasiScreen(
                 overflow = TextOverflow.Ellipsis,
               )
               val est = route.energyEstimate
-              Text(
-                text =
-                  "${String.format(Locale.US, "%.1f", route.distanceKm)} km • ${route.durationMin.roundToInt()} mnt" +
-                    (est?.let { " • Est ${it.netWh.roundToInt()} Wh (Sisa ${it.socAtArrivalPct?.roundToInt() ?: "—"}%)" } ?: ""),
-                style = MaterialTheme.typography.bodySmall,
-                color = cockpit.accent,
-              )
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+              ) {
+                Text(
+                  text = "${String.format(Locale.US, "%.1f", route.distanceKm)} km • ${route.durationMin.roundToInt()} mnt" +
+                    (est?.let { " • Est ${it.netWh.roundToInt()} Wh" } ?: ""),
+                  style = MaterialTheme.typography.bodySmall,
+                  color = cockpit.accent,
+                  fontWeight = FontWeight.SemiBold,
+                )
+                est?.socAtArrivalPct?.let { arrivalSoc ->
+                  val badgeColor =
+                    when {
+                      arrivalSoc < 15f -> cockpit.danger
+                      arrivalSoc < 30f -> cockpit.warning
+                      else -> cockpit.accent
+                    }
+                  Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = badgeColor.copy(alpha = 0.16f),
+                    border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.45f)),
+                  ) {
+                    Text(
+                      text = "Sisa ${arrivalSoc.roundToInt()}%",
+                      style = MaterialTheme.typography.labelSmall,
+                      color = badgeColor,
+                      fontWeight = FontWeight.Bold,
+                      modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    )
+                  }
+                }
+              }
             }
             nav.destination?.let { d ->
               IconButton(
@@ -752,10 +782,11 @@ private fun MapFabButton(
   onClick: () -> Unit,
 ) {
   Surface(
-    modifier = modifier.size(48.dp).clickable(onClick = onClick),
+    modifier = modifier.size(48.dp).clip(CircleShape).clickable(onClick = onClick),
     shape = CircleShape,
     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)),
+    tonalElevation = 4.dp,
   ) {
     Box(contentAlignment = Alignment.Center) {
       Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurface)

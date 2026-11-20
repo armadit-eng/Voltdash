@@ -1,6 +1,9 @@
 package com.example.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +36,11 @@ import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Analytics
+import androidx.compose.material.icons.outlined.ElectricBolt
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Navigation
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -47,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -54,6 +63,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.domain.ChargingIndicatorState
 import com.example.model.ConnectionState
 import com.example.ui.theme.LocalCockpitColors
@@ -63,33 +73,58 @@ enum class MainTab(
   val route: String,
   val label: String,
   val icon: ImageVector,
+  val inactiveIcon: ImageVector,
 ) {
-  HOME("home", "Home", Icons.Filled.Home),
-  DIAGNOSIS("diagnosis", "Diagnosis", Icons.Filled.ElectricBolt),
-  NAVIGASI("navigasi", "Navigasi", Icons.Filled.Navigation),
-  AKUN("akun", "Akun", Icons.Filled.Person),
-  STATS("stats", "Stats", Icons.Filled.Analytics),
+  HOME("home", "Home", Icons.Filled.Home, Icons.Outlined.Home),
+  DIAGNOSIS("diagnosis", "Diagnosis", Icons.Filled.ElectricBolt, Icons.Outlined.ElectricBolt),
+  NAVIGASI("navigasi", "Navigasi", Icons.Filled.Navigation, Icons.Outlined.Navigation),
+  AKUN("akun", "Akun", Icons.Filled.Person, Icons.Outlined.Person),
+  STATS("stats", "Stats", Icons.Filled.Analytics, Icons.Outlined.Analytics),
 }
 
 @Composable
 fun CockpitCard(
   modifier: Modifier = Modifier,
-  borderColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f),
+  borderColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
   containerColor: Color = MaterialTheme.colorScheme.surface,
+  accentGlow: Color? = null,
   onClick: (() -> Unit)? = null,
   content: @Composable ColumnScope.() -> Unit,
 ) {
+  val cockpit = LocalCockpitColors.current
+  val shape = RoundedCornerShape(18.dp)
+  val bgBrush =
+    if (accentGlow != null) {
+      Brush.verticalGradient(
+        colors = listOf(
+          accentGlow.copy(alpha = 0.11f),
+          containerColor,
+          cockpit.cardElevated.copy(alpha = 0.55f),
+        )
+      )
+    } else {
+      Brush.verticalGradient(
+        colors = listOf(
+          containerColor,
+          containerColor.copy(alpha = 0.94f),
+        )
+      )
+    }
+
   Surface(
     modifier =
       modifier.let { base ->
-        if (onClick != null) base.clickable(onClick = onClick) else base
+        if (onClick != null) base.clip(shape).clickable(onClick = onClick) else base
       },
-    shape = MaterialTheme.shapes.medium,
-    color = containerColor,
+    shape = shape,
+    color = Color.Transparent,
     border = BorderStroke(1.dp, borderColor),
-    tonalElevation = 1.dp,
+    tonalElevation = 2.dp,
   ) {
-    Column(modifier = Modifier.padding(14.dp), content = content)
+    Column(
+      modifier = Modifier.background(bgBrush).padding(15.dp),
+      content = content,
+    )
   }
 }
 
@@ -121,36 +156,48 @@ fun ConnectionChip(
   onClick: () -> Unit,
 ) {
   val cockpit = LocalCockpitColors.current
-  val dotColor =
+  val dotColor by
+    animateColorAsState(
+      targetValue =
+        when (state) {
+          ConnectionState.CONNECTED -> cockpit.accent
+          ConnectionState.CONNECTING,
+          ConnectionState.SCANNING -> cockpit.warning
+          ConnectionState.DISCONNECTED -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+        },
+      label = "conn_dot",
+    )
+  val borderColor =
     when (state) {
-      ConnectionState.CONNECTED -> cockpit.accent
+      ConnectionState.CONNECTED -> cockpit.accent.copy(alpha = 0.6f)
       ConnectionState.CONNECTING,
-      ConnectionState.SCANNING -> cockpit.warning
-      ConnectionState.DISCONNECTED -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-    }
-  val border =
-    if (state == ConnectionState.CONNECTED) {
-      cockpit.accent.copy(alpha = 0.5f)
-    } else {
-      MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+      ConnectionState.SCANNING -> cockpit.warning.copy(alpha = 0.55f)
+      ConnectionState.DISCONNECTED -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
     }
 
   Surface(
-    modifier = modifier.heightIn(min = 48.dp).clickable(onClick = onClick),
-    shape = RoundedCornerShape(14.dp),
-    color = MaterialTheme.colorScheme.surface,
-    border = BorderStroke(1.dp, border),
+    modifier = modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp)).clickable(onClick = onClick),
+    shape = RoundedCornerShape(24.dp),
+    color =
+      if (state == ConnectionState.CONNECTED) cockpit.accent.copy(alpha = 0.12f)
+      else MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+    border = BorderStroke(1.dp, borderColor),
   ) {
     Row(
-      modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+      modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-      Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(dotColor))
+      Box(
+        modifier =
+          Modifier.size(8.dp)
+            .clip(CircleShape)
+            .background(dotColor),
+      )
       Text(
         text = label,
         style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = if (state == ConnectionState.CONNECTED) FontWeight.Bold else FontWeight.SemiBold,
         color =
           if (state == ConnectionState.CONNECTED) MaterialTheme.colorScheme.onSurface
           else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -168,14 +215,14 @@ fun ChargingStatusPill(
   val (bgColor, fgColor, icon) =
     when (state) {
       ChargingIndicatorState.CHARGING ->
-        Triple(cockpit.accent.copy(alpha = 0.16f), cockpit.accent, Icons.Filled.BatteryChargingFull)
+        Triple(cockpit.accent.copy(alpha = 0.18f), cockpit.accent, Icons.Filled.BatteryChargingFull)
       ChargingIndicatorState.FULL ->
-        Triple(cockpit.accent.copy(alpha = 0.16f), cockpit.accent, Icons.Filled.BatteryFull)
+        Triple(cockpit.accent.copy(alpha = 0.18f), cockpit.accent, Icons.Filled.BatteryFull)
       ChargingIndicatorState.REGEN ->
-        Triple(cockpit.regen.copy(alpha = 0.16f), cockpit.regen, Icons.Filled.Bolt)
+        Triple(cockpit.regen.copy(alpha = 0.18f), cockpit.regen, Icons.Filled.Bolt)
       ChargingIndicatorState.NOT_CHARGING ->
         Triple(
-          MaterialTheme.colorScheme.surfaceVariant,
+          MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
           MaterialTheme.colorScheme.onSurfaceVariant,
           Icons.Filled.BatteryStd,
         )
@@ -184,14 +231,14 @@ fun ChargingStatusPill(
   Row(
     modifier =
       modifier
-        .clip(RoundedCornerShape(20.dp))
+        .clip(RoundedCornerShape(22.dp))
         .background(bgColor)
-        .border(1.dp, fgColor.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-        .padding(horizontal = 10.dp, vertical = 5.dp),
+        .border(1.dp, fgColor.copy(alpha = 0.45f), RoundedCornerShape(22.dp))
+        .padding(horizontal = 11.dp, vertical = 6.dp),
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(5.dp),
   ) {
-    Icon(icon, contentDescription = state.label, tint = fgColor, modifier = Modifier.size(14.dp))
+    Icon(icon, contentDescription = state.label, tint = fgColor, modifier = Modifier.size(15.dp))
     Text(
       text = state.label,
       style = MaterialTheme.typography.labelSmall,
@@ -211,23 +258,23 @@ fun StatTile(
 ) {
   Surface(
     modifier = modifier,
-    shape = RoundedCornerShape(12.dp),
-    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+    shape = RoundedCornerShape(14.dp),
+    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)),
   ) {
-    Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)) {
+    Column(modifier = Modifier.padding(horizontal = 11.dp, vertical = 10.dp)) {
       Text(
-        text = label,
-        style = MaterialTheme.typography.labelSmall,
+        text = label.uppercase(),
+        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp, letterSpacing = 0.6.sp),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
       )
-      Spacer(Modifier.height(2.dp))
+      Spacer(Modifier.height(3.dp))
       Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         Text(
           text = value,
-          style = MaterialTheme.typography.titleLarge,
+          style = MaterialTheme.typography.headlineLarge.copy(fontSize = 22.sp, lineHeight = 25.sp),
           color = accentValueColor,
           fontWeight = FontWeight.Bold,
           maxLines = 1,
@@ -237,7 +284,7 @@ fun StatTile(
             text = unit,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 2.dp),
+            modifier = Modifier.padding(bottom = 3.dp),
           )
         }
       }
@@ -280,10 +327,10 @@ fun HoldToConfirmButton(
   Box(
     modifier =
       modifier
-        .heightIn(min = 50.dp)
-        .clip(RoundedCornerShape(25.dp))
+        .heightIn(min = 52.dp)
+        .clip(RoundedCornerShape(26.dp))
         .background(containerColor.copy(alpha = 0.16f))
-        .border(1.5.dp, containerColor.copy(alpha = 0.65f), RoundedCornerShape(25.dp))
+        .border(1.5.dp, containerColor.copy(alpha = 0.7f), RoundedCornerShape(26.dp))
         .pointerInput(Unit) {
           detectTapGestures(
             onPress = {
@@ -299,7 +346,7 @@ fun HoldToConfirmButton(
       modifier =
         Modifier.matchParentSize()
           .fillMaxWidth(animProgress)
-          .background(containerColor.copy(alpha = 0.4f))
+          .background(containerColor.copy(alpha = 0.45f))
     )
     Text(
       text = if (isHolding) "Tahan… ${(animProgress * 100).toInt()}%" else label,
@@ -320,36 +367,55 @@ fun CockpitBottomBar(
   val cockpit = LocalCockpitColors.current
   Surface(
     modifier = modifier.fillMaxWidth(),
-    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
-    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-    shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
+    shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
+    tonalElevation = 6.dp,
   ) {
     Row(
-      modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 6.dp),
+      modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 7.dp),
       horizontalArrangement = Arrangement.SpaceAround,
       verticalAlignment = Alignment.CenterVertically,
     ) {
       MainTab.entries.forEach { tab ->
         val selected = tab == currentTab
-        val fg = if (selected) cockpit.accent else MaterialTheme.colorScheme.onSurfaceVariant
+        val fg by
+          animateColorAsState(
+            targetValue = if (selected) cockpit.accent else MaterialTheme.colorScheme.onSurfaceVariant,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "tab_fg",
+          )
+        val pillBg by
+          animateColorAsState(
+            targetValue = if (selected) cockpit.accent.copy(alpha = 0.16f) else Color.Transparent,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "tab_bg",
+          )
         Column(
           modifier =
             Modifier.weight(1f)
               .heightIn(min = 52.dp)
-              .clip(RoundedCornerShape(12.dp))
-              .background(if (selected) cockpit.accent.copy(alpha = 0.12f) else Color.Transparent)
+              .clip(RoundedCornerShape(16.dp))
               .clickable { onSelectTab(tab) }
               .testTag("nav_tab_${tab.route}")
-              .padding(vertical = 6.dp),
+              .padding(vertical = 4.dp),
           horizontalAlignment = Alignment.CenterHorizontally,
           verticalArrangement = Arrangement.Center,
         ) {
-          Icon(
-            imageVector = tab.icon,
-            contentDescription = tab.label,
-            tint = fg,
-            modifier = Modifier.size(22.dp),
-          )
+          Box(
+            modifier =
+              Modifier.clip(RoundedCornerShape(14.dp))
+                .background(pillBg)
+                .padding(horizontal = 14.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center,
+          ) {
+            Icon(
+              imageVector = if (selected) tab.icon else tab.inactiveIcon,
+              contentDescription = tab.label,
+              tint = fg,
+              modifier = Modifier.size(21.dp),
+            )
+          }
           Spacer(Modifier.height(2.dp))
           Text(
             text = tab.label,

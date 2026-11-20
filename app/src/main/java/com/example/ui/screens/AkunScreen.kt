@@ -57,6 +57,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -127,7 +131,22 @@ fun AkunScreen(
       TelemetryEngine.computeMaintenanceStatus(eff.odoKm, settings)
     }
 
-  Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+  Box(
+    modifier =
+      modifier.fillMaxSize().drawBehind {
+        drawCircle(
+          brush =
+            Brush.radialGradient(
+              colors = listOf(cockpit.accent.copy(alpha = 0.12f), Color.Transparent),
+              center = Offset(size.width * 0.5f, 0f),
+              radius = size.width * 0.9f,
+            ),
+          center = Offset(size.width * 0.5f, 0f),
+          radius = size.width * 0.9f,
+        )
+      },
+    contentAlignment = Alignment.TopCenter,
+  ) {
     LazyColumn(
       modifier = Modifier.widthIn(max = 600.dp).fillMaxSize(),
       contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
@@ -135,7 +154,12 @@ fun AkunScreen(
     ) {
       // 1. Rider Profile Card
       item {
-        CockpitCard(onClick = { showProfileEdit = true }, modifier = Modifier.fillMaxWidth()) {
+        CockpitCard(
+          onClick = { showProfileEdit = true },
+          accentGlow = cockpit.accent,
+          borderColor = cockpit.accent.copy(alpha = 0.45f),
+          modifier = Modifier.fillMaxWidth(),
+        ) {
           Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
               modifier = Modifier.size(52.dp).clip(CircleShape).background(cockpit.accent.copy(alpha = 0.16f)),
@@ -351,7 +375,13 @@ fun AkunScreen(
 
       // 5b. AT+MAPS & Mirror Layar MID Card
       item {
-        CockpitCard(modifier = Modifier.fillMaxWidth()) {
+        CockpitCard(
+          accentGlow = if (mirrorActive || settings.atMapsEnabled) cockpit.accent else cockpit.info,
+          borderColor =
+            if (mirrorActive) cockpit.accent.copy(alpha = 0.55f)
+            else MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
+          modifier = Modifier.fillMaxWidth(),
+        ) {
           Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -857,9 +887,11 @@ private fun DeviceConnectionRow(
     }
 
   Surface(
-    modifier = modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(onClick = onClick),
-    shape = RoundedCornerShape(12.dp),
-    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    modifier = modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick),
+    shape = RoundedCornerShape(14.dp),
+    color =
+      if (state == ConnectionState.CONNECTED) cockpit.accent.copy(alpha = 0.1f)
+      else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
     border =
       BorderStroke(
         1.dp,
@@ -872,14 +904,21 @@ private fun DeviceConnectionRow(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-      Column(modifier = Modifier.weight(1f)) {
-        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-        Text(statusText, style = MaterialTheme.typography.bodySmall, color = statusColor)
+      Row(
+        modifier = Modifier.weight(1f),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+      ) {
+        Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(statusColor))
+        Column {
+          Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+          Text(statusText, style = MaterialTheme.typography.bodySmall, color = statusColor)
+        }
       }
       Icon(
         Icons.Filled.Settings,
         contentDescription = title,
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        tint = if (state == ConnectionState.CONNECTED) cockpit.accent else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.size(18.dp),
       )
     }

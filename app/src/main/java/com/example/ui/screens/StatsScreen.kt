@@ -1,6 +1,9 @@
 package com.example.ui.screens
 
 import android.content.Intent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,10 +11,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,9 +34,11 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -56,6 +63,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -148,7 +159,22 @@ fun StatsScreen(
   val dateLabelFmt = remember { SimpleDateFormat("dd MMM yyyy", Locale("id", "ID")) }
   val timeFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
-  Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+  Box(
+    modifier =
+      modifier.fillMaxSize().drawBehind {
+        drawCircle(
+          brush =
+            Brush.radialGradient(
+              colors = listOf(cockpit.accent.copy(alpha = 0.12f), Color.Transparent),
+              center = Offset(size.width * 0.5f, 0f),
+              radius = size.width * 0.9f,
+            ),
+          center = Offset(size.width * 0.5f, 0f),
+          radius = size.width * 0.9f,
+        )
+      },
+    contentAlignment = Alignment.TopCenter,
+  ) {
     LazyColumn(
       modifier = Modifier.widthIn(max = 600.dp).fillMaxSize(),
       contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
@@ -156,28 +182,46 @@ fun StatsScreen(
     ) {
       // 1. Summary & Fuel Savings
       item {
-        CockpitCard(modifier = Modifier.fillMaxWidth()) {
+        CockpitCard(
+          accentGlow = cockpit.accent,
+          borderColor = cockpit.accent.copy(alpha = 0.45f),
+          modifier = Modifier.fillMaxWidth(),
+        ) {
           Text("Statistik & Penghematan BBM", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-          Spacer(Modifier.height(8.dp))
+          Spacer(Modifier.height(10.dp))
           Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatTile("Total Jarak", String.format(Locale.US, "%.1f", totalKm), "km", cockpit.accent, Modifier.weight(1f))
             StatTile("Total Trip", "${trips.size}", "kali", MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
             StatTile("CO2 Hemat", String.format(Locale.US, "%.1f", savings.co2SavedKg), "kg", cockpit.info, Modifier.weight(1f))
           }
-          Spacer(Modifier.height(8.dp))
+          Spacer(Modifier.height(10.dp))
           val rpFmt = NumberFormat.getNumberInstance(Locale("id", "ID"))
-          Text(
-            text = "Hemat Rp ${rpFmt.format(savings.netSavingsRp)} dibanding motor bensin (40 km/L)",
-            style = MaterialTheme.typography.bodySmall,
-            color = cockpit.accent,
-            fontWeight = FontWeight.SemiBold,
-          )
+          Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = cockpit.accent.copy(alpha = 0.14f),
+            border = BorderStroke(1.dp, cockpit.accent.copy(alpha = 0.4f)),
+            modifier = Modifier.fillMaxWidth(),
+          ) {
+            Text(
+              text = "Hemat Rp ${rpFmt.format(savings.netSavingsRp)} dibanding motor bensin (40 km/L)",
+              style = MaterialTheme.typography.bodySmall,
+              color = cockpit.accent,
+              fontWeight = FontWeight.SemiBold,
+              modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+          }
         }
       }
 
       // 2. Weekly Distance Goal & 7-day Chart
       item {
         val weekKm = dailyBars.sumOf { it.distanceKm }.toFloat()
+        val animatedWeekProgress by
+          animateFloatAsState(
+            targetValue = (weekKm / settings.weeklyGoalKm.coerceAtLeast(1f)).coerceIn(0f, 1f),
+            animationSpec = spring(stiffness = Spring.StiffnessLow),
+            label = "weekly_goal_progress",
+          )
         CockpitCard(modifier = Modifier.fillMaxWidth()) {
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Target Mingguan & Grafik 7 Hari", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -185,16 +229,19 @@ fun StatsScreen(
               "${String.format(Locale.US, "%.1f", weekKm)} / ${settings.weeklyGoalKm.roundToInt()} km",
               style = MaterialTheme.typography.labelMedium,
               color = cockpit.accent,
+              fontWeight = FontWeight.Bold,
             )
           }
-          Spacer(Modifier.height(6.dp))
+          Spacer(Modifier.height(8.dp))
           LinearProgressIndicator(
-            progress = { (weekKm / settings.weeklyGoalKm).coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(4.dp)),
+            progress = { animatedWeekProgress },
+            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
             color = cockpit.accent,
+            trackColor = cockpit.accent.copy(alpha = 0.14f),
           )
-          Spacer(Modifier.height(10.dp))
+          Spacer(Modifier.height(12.dp))
           DailyStatsBarCanvas(bars = dailyBars, accentColor = cockpit.accent)
+          Spacer(Modifier.height(4.dp))
           Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
             dailyBars.forEach { b ->
               Text(b.dayLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -247,9 +294,16 @@ fun StatsScreen(
                       ),
                   ) {
                     Column(
-                      modifier = Modifier.padding(8.dp),
+                      modifier = Modifier.padding(9.dp),
                       horizontalAlignment = Alignment.CenterHorizontally,
+                      verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
+                      Icon(
+                        imageVector = if (unlocked) Icons.Filled.CheckCircle else Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = if (unlocked) cockpit.accent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                        modifier = Modifier.size(16.dp),
+                      )
                       Text(
                         b.name,
                         style = MaterialTheme.typography.labelSmall,
@@ -421,45 +475,68 @@ fun StatsScreen(
         items(displayedTrips, key = { it.id }) { trip ->
           CockpitCard(
             onClick = { selectedTrip = trip },
+            borderColor = cockpit.accent.copy(alpha = 0.35f),
             modifier = Modifier.fillMaxWidth().testTag("trip_item_${trip.id}"),
           ) {
             Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = Arrangement.SpaceBetween,
+              modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+              horizontalArrangement = Arrangement.spacedBy(10.dp),
               verticalAlignment = Alignment.CenterVertically,
             ) {
+              Box(
+                modifier =
+                  Modifier.width(4.dp)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(cockpit.accent)
+              )
               Column(modifier = Modifier.weight(1f)) {
-                Text(
-                  text = "${dateLabelFmt.format(Date(trip.startTimeMs))} • ${timeFmt.format(Date(trip.startTimeMs))} - ${timeFmt.format(Date(trip.endTimeMs))}",
-                  style = MaterialTheme.typography.labelSmall,
-                  color = cockpit.accent,
-                  fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                  text = "${trip.startLabel} -> ${trip.endLabel}",
-                  style = MaterialTheme.typography.titleSmall,
-                  fontWeight = FontWeight.Bold,
-                )
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically,
+                ) {
+                  Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                      text = "${dateLabelFmt.format(Date(trip.startTimeMs))} • ${timeFmt.format(Date(trip.startTimeMs))} - ${timeFmt.format(Date(trip.endTimeMs))}",
+                      style = MaterialTheme.typography.labelSmall,
+                      color = cockpit.accent,
+                      fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                      text = "${trip.startLabel} -> ${trip.endLabel}",
+                      style = MaterialTheme.typography.titleSmall,
+                      fontWeight = FontWeight.Bold,
+                    )
+                  }
+                  Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = cockpit.accent.copy(alpha = 0.14f),
+                    border = BorderStroke(1.dp, cockpit.accent.copy(alpha = 0.4f)),
+                  ) {
+                    Text(
+                      text = "${String.format(Locale.US, "%.2f", trip.distanceKm)} km",
+                      style = MaterialTheme.typography.titleSmall,
+                      color = cockpit.accent,
+                      fontWeight = FontWeight.Bold,
+                      modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                    )
+                  }
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                  Text(
+                    "Rata² ${String.format(Locale.US, "%.1f", trip.avgSpeedKmh)} km/h • Max ${trip.maxSpeedKmh.roundToInt()} km/h",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                  Text(
+                    "${trip.energyWh.roundToInt()} Wh • Score ${trip.ridingScore ?: "—"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                  )
+                }
               }
-              Text(
-                text = "${String.format(Locale.US, "%.2f", trip.distanceKm)} km",
-                style = MaterialTheme.typography.titleMedium,
-                color = cockpit.accent,
-                fontWeight = FontWeight.Bold,
-              )
-            }
-            Spacer(Modifier.height(6.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-              Text(
-                "Rata² ${String.format(Locale.US, "%.1f", trip.avgSpeedKmh)} km/h • Max ${trip.maxSpeedKmh.roundToInt()} km/h",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
-              Text(
-                "${trip.energyWh.roundToInt()} Wh • Score ${trip.ridingScore ?: "—"}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-              )
             }
           }
         }
