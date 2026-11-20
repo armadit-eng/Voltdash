@@ -1,0 +1,6 @@
+{
+  "name": "GESITS Dash",
+  "description": "Dashboard motor listrik GESITS dengan telemetri BLE dan Classic, Dual Battery, Navigasi, dan Mode Cockpit.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

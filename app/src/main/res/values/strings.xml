@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GESITS Dash</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_diag">Diagnosis</string>
+    <string name="tab_nav">Navigasi</string>
+    <string name="tab_akun">Akun</string>
+    <string name="tab_stats">Stats</string>
+    <string name="status_connected">Terhubung</string>
+    <string name="status_connecting">Menghubungkan…</string>
+    <string name="status_disconnected">Terputus</string>
+    <string name="nav_search_hint">Cari tujuan, alamat, atau koordinat…</string>
+    <string name="ride_lock_unlock_hint">Tahan 1.5 dtk untuk buka</string>
+</resources>
